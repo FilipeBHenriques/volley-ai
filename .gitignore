@@ -1,3 +1,10 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# MuJoCo / RL local artifacts
+volleyball-mujoco/.venv/
+volleyball-mujoco/logs/
+volleyball-mujoco/models/
+volleyball-mujoco/__pycache__/
+volleyball-mujoco/*.pyc

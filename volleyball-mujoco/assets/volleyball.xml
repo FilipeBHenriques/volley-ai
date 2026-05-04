@@ -1,0 +1,238 @@
+<!--
+  VolleyAI MVP — MuJoCo Scene
+  ════════════════════════════════════════════════════════════════════════
+  Coordinate frame (right-hand, Z-up):
+    X  — court length  (net at X = 0, player on the +X side)
+    Y  — court width   (parallel to the net)
+    Z  — vertical (up)
+
+  Key real-world dimensions:
+    Court        18 m × 9 m   →  X ∈ [-9, 9],  Y ∈ [-4.5, 4.5]
+    Net height   2.43 m        (men's competition)
+    Ball radius  0.105 m       (circumference ≈ 66 cm  →  r = C/2π)
+    Ball mass    0.27 kg       (official range 260-280 g)
+-->
+<mujoco model="volleyball_mvp">
+
+  <!-- autolimits: automatically enforce joint ranges (MuJoCo 3.x feature) -->
+  <compiler autolimits="true"/>
+
+  <!--
+    gravity    = standard Earth gravity (m/s²)
+    timestep   = 2 ms  →  500 physics steps per second; stable for contacts
+    integrator = Euler — simple, fast; works well at this timestep
+  -->
+  <option gravity="0 0 -9.81" timestep="0.002" integrator="Euler"/>
+
+  <!-- ── Visual atmosphere ──────────────────────────────────────────────── -->
+  <visual>
+    <headlight ambient="0.45 0.45 0.45" diffuse="0.8 0.8 0.8" specular="0.1 0.1 0.1"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+  </visual>
+
+  <!-- ── Textures & materials ───────────────────────────────────────────── -->
+  <asset>
+    <texture name="sky_tex"   type="skybox" builtin="gradient"
+             rgb1="0.4 0.65 0.95" rgb2="0.05 0.10 0.35"
+             width="512" height="512"/>
+
+    <!--
+      Checker-board court texture.
+      mark="edge" draws thin lines at checker boundaries → looks like court tiles.
+    -->
+    <texture name="court_tex" type="2d" builtin="checker"
+             rgb1="0.95 0.85 0.55" rgb2="0.88 0.76 0.44"
+             width="1024" height="512" mark="edge" markrgb="0.85 0.72 0.38"/>
+
+    <material name="court_mat"  texture="court_tex" texrepeat="9 4.5"
+              reflectance="0.05" specular="0.05" shininess="0.1"/>
+    <material name="net_mat"    rgba="0.90 0.90 0.85 0.80"/>
+    <material name="ball_mat"   rgba="1.0 0.93 0.28 1"
+              specular="0.6" shininess="0.9"/>
+    <material name="player_mat"  rgba="0.15 0.50 0.95 1"
+              specular="0.3" shininess="0.5"/>
+    <material name="player2_mat" rgba="0.95 0.40 0.20 1"
+              specular="0.3" shininess="0.5"/>
+    <material name="post_mat"    rgba="0.80 0.80 0.80 1"
+              specular="0.6" shininess="0.8"/>
+  </asset>
+
+  <!-- ══ Scene ══════════════════════════════════════════════════════════════ -->
+  <worldbody>
+
+    <!-- ── Court / ground ────────────────────────────────────────────────
+         type="plane"  Infinite flat surface.  'size' only scales the UV
+                       texture tiling — it does NOT bound the physics.
+
+         friction      [sliding_μ, torsional_μ, rolling_μ]
+                       0.6 sliding ≈ rubberised hardwood sports floor.
+
+         solref        [time_constant_s, damping_ratio]
+                       "0.005 1.0" → 5 ms spring, critically damped.
+                       Smaller time_constant = stiffer, less penetration.
+
+         solimp        [d0, d1, width, mid, power]
+                       Impedance of the constraint force.
+                       d1 near 1.0 = very rigid enforcement.
+    -->
+    <geom name="floor"
+          type="plane" size="9 4.5 0.1"
+          material="court_mat"
+          friction="0.6 0.005 0.0001"
+          solimp="0.99 0.999 0.001 0.5 2"
+          solref="0.005 1.0"/>
+
+    <!-- ── Net posts ──────────────────────────────────────────────────────
+         size = [radius, half_height] for a cylinder.
+         Centred at Z = 1.215 m (half of 2.43 m net height).
+    -->
+    <geom name="post_left"
+          type="cylinder" size="0.05 1.215"
+          pos="0.0 -4.5 1.215"
+          material="post_mat"/>
+    <geom name="post_right"
+          type="cylinder" size="0.05 1.215"
+          pos="0.0  4.5 1.215"
+          material="post_mat"/>
+
+    <!-- ── Volleyball net ────────────────────────────────────────────────
+         A thin box spanning the full court width (9 m) and net height (2.43 m).
+         size = half-extents [x, y, z]:
+           x = 0.02  — 4 cm thick (thin slab to represent net)
+           y = 4.5   — half court width
+           z = 1.215 — half net height
+
+         pos: centred at Z = 1.215 so the bottom touches Z = 0 (floor level)
+              and the top reaches Z = 2.43 m.
+    -->
+    <geom name="net"
+          type="box" size="0.02 4.5 1.215"
+          pos="0.0 0.0 1.215"
+          material="net_mat"
+          friction="0.3 0.005 0.0001"
+          solimp="0.99 0.999 0.001 0.5 2"
+          solref="0.005 1.0"/>
+
+    <!-- ── Volleyball ────────────────────────────────────────────────────
+         freejoint gives the ball full 6-DOF motion (3 translation + 3 rotation).
+         Without a joint, the body is welded to the world.
+
+         mass      = 0.27 kg   (official 260-280 g range)
+         size      = 0.105 m radius
+         condim    = 3   →  frictional contact (normal + 2 tangential directions)
+
+         solimp/solref are softer than the floor, which gives the ball a subtle
+         bounce when it hits the ground:
+           solref "0.01 0.75" → 10 ms spring, damping ratio 0.75 (underdamped)
+           damping_ratio < 1.0 means the contact is slightly bouncy.
+    -->
+    <body name="ball" pos="3.5 0.0 2.5">
+      <freejoint name="ball_joint"/>
+      <geom name="ball_geom"
+            type="sphere" size="0.105"
+            mass="0.27"
+            material="ball_mat"
+            friction="0.4 0.005 0.0001"
+            solimp="0.85 0.97 0.001 0.5 2"
+            solref="0.01 0.75"
+            condim="3"/>
+    </body>
+
+    <!-- ── Player (controllable capsule) ─────────────────────────────────
+         A capsule is a cylinder with hemispherical caps — smooth and easy
+         to collide with.  It stands in for a simplified player body.
+
+         size = [radius, half_length]:
+           radius      = 0.2 m   (~shoulder width / 2)
+           half_length = 0.4 m
+           Total height = 2 * (half_length + radius) = 1.2 m
+
+         Initial body position (pos="3.5 0.0 0.6"):
+           x = 3.5   — on the player's side (net is at x = 0)
+           y = 0.0   — court centre-line
+           z = 0.6   — capsule centre at rest height
+                       z_bottom = z_centre − half_length − radius
+                                = 0.6 − 0.4 − 0.2 = 0.0  ✓ (touching floor)
+
+         Three slide joints give the player 3 translational degrees of freedom.
+         Rotation is NOT allowed (the capsule stays upright).
+
+         damping  Velocity-proportional resistance — like friction / air drag.
+                  Without damping, the player would slide indefinitely.
+         range    Travel limits relative to the initial position.
+                  slide_x range="-3.2 5.4" means the player can move
+                  3.2 m toward the net (to x ≈ 0.3, just before it)
+                  and 5.4 m away from it.
+    -->
+    <body name="player" pos="3.5 0.0 0.6">
+      <joint name="slide_y" type="slide" axis="0 1 0"
+             range="-3.8 3.8" damping="25" stiffness="0"/>
+      <joint name="slide_x" type="slide" axis="1 0 0"
+             range="-3.2 5.4" damping="25" stiffness="0"/>
+      <joint name="slide_z" type="slide" axis="0 0 1"
+             range="-0.1 4.0" damping="5" stiffness="0"/>
+      <geom name="player_geom"
+            type="capsule" size="0.2 0.4"
+            mass="75"
+            material="player_mat"
+            friction="0.6 0.005 0.0001"
+            solimp="0.99 0.999 0.001 0.5 2"
+            solref="0.005 1.0"
+            condim="3"/>
+    </body>
+
+    <!-- ── Player 2 (opponent / rally partner) ──────────────────────────
+         Mirror of player 1 on the −X side of the net (net is at X = 0).
+         Driven by a simple reactive AI in main.py: it tracks the ball when
+         the ball is on its side and jumps when the ball comes into reach.
+
+         slide_x2 range "-5.4 3.2" mirrors player 1's "-3.2 5.4":
+           min  x = -3.5 + (-5.4) = -8.9  (back of court)
+           max  x = -3.5 + ( 3.2) = -0.3  (just shy of the net)
+    -->
+    <body name="player2" pos="-3.5 0.0 0.6">
+      <joint name="slide_y2" type="slide" axis="0 1 0"
+             range="-3.8 3.8" damping="25" stiffness="0"/>
+      <joint name="slide_x2" type="slide" axis="1 0 0"
+             range="-5.4 3.2" damping="25" stiffness="0"/>
+      <joint name="slide_z2" type="slide" axis="0 0 1"
+             range="-0.1 4.0" damping="5" stiffness="0"/>
+      <geom name="player2_geom"
+            type="capsule" size="0.2 0.4"
+            mass="75"
+            material="player2_mat"
+            friction="0.6 0.005 0.0001"
+            solimp="0.99 0.999 0.001 0.5 2"
+            solref="0.005 1.0"
+            condim="3"/>
+    </body>
+
+  </worldbody>
+
+  <!-- ══ Actuators ══════════════════════════════════════════════════════════
+       Motor actuators apply force (Newtons) to each slide joint.
+         gear="1"   →  1 unit of ctrl = 1 N of force (no mechanical advantage)
+         ctrlrange  →  clamps the value Python may write into data.ctrl[i]
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <actuator>
+    <!-- Lateral movement — left / right along the net (Y axis) -->
+    <motor name="act_y" joint="slide_y" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <!-- Depth movement — toward / away from the net (X axis) -->
+    <motor name="act_x" joint="slide_x" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <!-- Vertical movement — jump / hit upward (Z axis).
+         Large upper limit (8000 N) lets a short burst produce a visible jump. -->
+    <motor name="act_z" joint="slide_z" gear="1"
+           ctrllimited="true" ctrlrange="-200 8000"/>
+
+    <!-- Player 2: same three motors on the mirrored joints -->
+    <motor name="act_y2" joint="slide_y2" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <motor name="act_x2" joint="slide_x2" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <motor name="act_z2" joint="slide_z2" gear="1"
+           ctrllimited="true" ctrlrange="-200 8000"/>
+  </actuator>
+
+</mujoco>
