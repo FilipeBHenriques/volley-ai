@@ -46,12 +46,16 @@
 
     <material name="court_mat"  texture="court_tex" texrepeat="9 4.5"
               reflectance="0.05" specular="0.05" shininess="0.1"/>
-    <material name="net_mat"    rgba="0.90 0.90 0.85 0.80"/>
+    <material name="net_mat"    rgba="0.90 0.95 1.00 0.24"/>
     <material name="ball_mat"   rgba="1.0 0.93 0.28 1"
               specular="0.6" shininess="0.9"/>
     <material name="player_mat"  rgba="0.15 0.50 0.95 1"
               specular="0.3" shininess="0.5"/>
+    <material name="player3_mat" rgba="0.10 0.75 1.00 1"
+              specular="0.3" shininess="0.5"/>
     <material name="player2_mat" rgba="0.95 0.40 0.20 1"
+              specular="0.3" shininess="0.5"/>
+    <material name="player4_mat" rgba="1.00 0.68 0.15 1"
               specular="0.3" shininess="0.5"/>
     <material name="post_mat"    rgba="0.80 0.80 0.80 1"
               specular="0.6" shininess="0.8"/>
@@ -106,7 +110,7 @@
               and the top reaches Z = 2.43 m.
     -->
     <geom name="net"
-          type="box" size="0.02 4.5 1.215"
+          type="box" size="0.012 4.5 1.215"
           pos="0.0 0.0 1.215"
           material="net_mat"
           friction="0.3 0.005 0.0001"
@@ -164,7 +168,7 @@
                   3.2 m toward the net (to x ≈ 0.3, just before it)
                   and 5.4 m away from it.
     -->
-    <body name="player" pos="3.5 0.0 0.6">
+    <body name="player" pos="3.5 0.0 1.0">
       <joint name="slide_y" type="slide" axis="0 1 0"
              range="-3.8 3.8" damping="25" stiffness="0"/>
       <joint name="slide_x" type="slide" axis="1 0 0"
@@ -172,7 +176,7 @@
       <joint name="slide_z" type="slide" axis="0 0 1"
              range="-0.1 4.0" damping="5" stiffness="0"/>
       <geom name="player_geom"
-            type="capsule" size="0.2 0.4"
+            type="capsule" size="0.26 0.74"
             mass="75"
             material="player_mat"
             friction="0.6 0.005 0.0001"
@@ -190,7 +194,7 @@
            min  x = -3.5 + (-5.4) = -8.9  (back of court)
            max  x = -3.5 + ( 3.2) = -0.3  (just shy of the net)
     -->
-    <body name="player2" pos="-3.5 0.0 0.6">
+    <body name="player2" pos="-3.5 0.0 1.0">
       <joint name="slide_y2" type="slide" axis="0 1 0"
              range="-3.8 3.8" damping="25" stiffness="0"/>
       <joint name="slide_x2" type="slide" axis="1 0 0"
@@ -198,9 +202,43 @@
       <joint name="slide_z2" type="slide" axis="0 0 1"
              range="-0.1 4.0" damping="5" stiffness="0"/>
       <geom name="player2_geom"
-            type="capsule" size="0.2 0.4"
+            type="capsule" size="0.26 0.74"
             mass="75"
             material="player2_mat"
+            friction="0.6 0.005 0.0001"
+            solimp="0.99 0.999 0.001 0.5 2"
+            solref="0.005 1.0"
+            condim="3"/>
+    </body>
+
+    <body name="player3" pos="6.3 1.8 1.0">
+      <joint name="slide_y3" type="slide" axis="0 1 0"
+             range="-5.6 2.0" damping="25" stiffness="0"/>
+      <joint name="slide_x3" type="slide" axis="1 0 0"
+             range="-6.0 2.6" damping="25" stiffness="0"/>
+      <joint name="slide_z3" type="slide" axis="0 0 1"
+             range="-0.1 4.0" damping="5" stiffness="0"/>
+      <geom name="player3_geom"
+            type="capsule" size="0.26 0.74"
+            mass="75"
+            material="player3_mat"
+            friction="0.6 0.005 0.0001"
+            solimp="0.99 0.999 0.001 0.5 2"
+            solref="0.005 1.0"
+            condim="3"/>
+    </body>
+
+    <body name="player4" pos="-6.3 -1.8 1.0">
+      <joint name="slide_y4" type="slide" axis="0 1 0"
+             range="-2.0 5.6" damping="25" stiffness="0"/>
+      <joint name="slide_x4" type="slide" axis="1 0 0"
+             range="-2.6 6.0" damping="25" stiffness="0"/>
+      <joint name="slide_z4" type="slide" axis="0 0 1"
+             range="-0.1 4.0" damping="5" stiffness="0"/>
+      <geom name="player4_geom"
+            type="capsule" size="0.26 0.74"
+            mass="75"
+            material="player4_mat"
             friction="0.6 0.005 0.0001"
             solimp="0.99 0.999 0.001 0.5 2"
             solref="0.005 1.0"
@@ -232,6 +270,20 @@
     <motor name="act_x2" joint="slide_x2" gear="1"
            ctrllimited="true" ctrlrange="-600 600"/>
     <motor name="act_z2" joint="slide_z2" gear="1"
+           ctrllimited="true" ctrlrange="-200 8000"/>
+
+    <motor name="act_y3" joint="slide_y3" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <motor name="act_x3" joint="slide_x3" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <motor name="act_z3" joint="slide_z3" gear="1"
+           ctrllimited="true" ctrlrange="-200 8000"/>
+
+    <motor name="act_y4" joint="slide_y4" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <motor name="act_x4" joint="slide_x4" gear="1"
+           ctrllimited="true" ctrlrange="-600 600"/>
+    <motor name="act_z4" joint="slide_z4" gear="1"
            ctrllimited="true" ctrlrange="-200 8000"/>
   </actuator>
 

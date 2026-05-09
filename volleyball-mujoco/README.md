@@ -15,7 +15,11 @@ volleyball-mujoco/
 |-- volleyball_core.py
 |-- volleyball_env.py
 |-- train.py
+|-- train_rally_models.py
+|-- train_2v2_models.py
 |-- play_trained.py
+|-- play_match.py
+|-- play_2v2.py
 |-- random_test.py
 |-- requirements.txt
 `-- README.md
@@ -106,6 +110,84 @@ Later, once Stage 3 starts working:
 ```bash
 python play_trained.py --stage 3 --opponent-mode scripted
 ```
+
+## Play a 1v1 match to 15
+
+Train the lightweight rally policies used by the match visualizer:
+
+```bash
+python train_rally_models.py
+```
+
+This writes:
+
+- `models/rally_p1.npz`
+- `models/rally_p2.npz`
+
+Run a full game with the trained rally models:
+
+```bash
+python play_match.py
+```
+
+The match runner:
+
+- plays Player 1 vs Player 2 until one side reaches 15
+- lets each side use up to 3 touches before returning the ball
+- tracks receive/set/spike-style touches and clean net crossings
+- scores ground landings, out balls, low net crossings, and 4-touch faults
+
+Watch the trained rally models:
+
+```bash
+python play_match.py --render
+```
+
+For a quick visual check:
+
+```bash
+python play_match.py --render --points 5
+```
+
+Use trained PPO models when they are available:
+
+```bash
+python play_match.py --p1 ppo --p2 ppo --stage 3
+```
+
+Or compare one trained model against the scripted AI:
+
+```bash
+python play_match.py --p1 ppo --p2 scripted --p1-model models/ppo_stage3.zip --p1-vecnorm models/vecnormalize_stage3.pkl
+```
+
+Add `--render` to watch the match in the MuJoCo viewer.
+
+## Train and watch 2v2
+
+Train the neural 2v2 team policy:
+
+```bash
+python train_2v2_models.py
+```
+
+This saves:
+
+- `models/team2v2_policy.npz`
+
+Watch the trained 2v2 model:
+
+```bash
+python play_2v2.py --render
+```
+
+For a quick visual check:
+
+```bash
+python play_2v2.py --render --points 5
+```
+
+The 2v2 scene uses four visible players, a transparent net, larger player bodies for clearer contacts, trained neural movement/hit decisions, and volleyball-style receive/set/spike/block match logic.
 
 ## Random smoke test
 

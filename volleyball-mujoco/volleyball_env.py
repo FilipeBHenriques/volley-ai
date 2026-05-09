@@ -174,7 +174,7 @@ class VolleyballEnv(gym.Env):
             radius = float(self._np_random.uniform(0.45, 0.9))
             spawn_x = float(np.clip(3.5 + radius * np.cos(angle), 2.8, 4.8))
             spawn_y = float(np.clip(radius * np.sin(angle), -1.2, 1.2))
-            pos = np.array([spawn_x, spawn_y, 3.2], dtype=np.float64)
+            pos = np.array([spawn_x, spawn_y, 30.2], dtype=np.float64)
             vel = np.array([0.0, 0.0, 2.2, 0.0, 0.0, 0.0], dtype=np.float64)
         elif self.training_stage == 2:
             spawn_x = float(self._np_random.uniform(2.9, 4.2))
@@ -205,8 +205,8 @@ class VolleyballEnv(gym.Env):
             self._np_random = np.random.default_rng(seed)
 
         mujoco.mj_resetData(self.model, self.data)
-        self._set_player_pose(self.idx.p1, x=3.5, y=0.0, z=0.6)
-        self._set_player_pose(self.idx.p2, x=-3.5, y=0.0, z=0.6)
+        self._set_player_pose(self.idx.p1, x=3.5, y=0.0, z=1.0)
+        self._set_player_pose(self.idx.p2, x=-3.5, y=0.0, z=1.0)
         self._stage_reset_ball()
         mujoco.mj_forward(self.model, self.data)
 
